@@ -138,14 +138,20 @@ def load_blanks(path: Path | str = CONFIG_DIR / "size_guides.csv") -> list[Blank
 # Finding release date / tracklist / size guide fields without being told
 # ---------------------------------------------------------------------------
 
-METAFIELD_WORDS = {"release_date": ["release"], "tracklist": ["track"], "size_guide": ["size"]}
+METAFIELD_WORDS = {"release_date": [["release"]], "tracklist": [["track"]],
+                   # a size guide field must say "size" AND "guide"/"chart", so Shopify's own "Size" field
+                   # (the S/M/L attribute on every clothing product) is never mistaken for one
+                   "size_guide": [["size", "guide"], ["size", "chart"]]}
 
 
 def _matches(alias: str, namespace: str, key: str, settings: dict) -> bool:
     conf = settings.get("metafields", {}).get(alias, {})
     if conf.get("key"):
         return key == conf["key"] and (not conf.get("namespace") or namespace == conf["namespace"])
-    return any(w in key.lower() for w in METAFIELD_WORDS[alias])
+    if (namespace or "").lower() == "shopify":  # Shopify's built-in category fields (size, colour, fabric…)
+        return False
+    k = key.lower()
+    return any(all(w in k for w in words) for words in METAFIELD_WORDS[alias])
 
 
 def pick_metafields(all_metafields: list[dict], settings: dict) -> dict:
@@ -160,19 +166,36 @@ def pick_metafields(all_metafields: list[dict], settings: dict) -> dict:
     return out
 
 
+def metafield_label(m: dict) -> str:
+    """Readable value of one metafield: the names of linked pages/entries, or the start of the text."""
+    refs = [m.get("reference")] + list(((m.get("references") or {}).get("nodes")) or [])
+    names = [r.get("title") or r.get("displayName") for r in refs if r]
+    names = [n for n in names if n]
+    if names:
+        return ", ".join(names)
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(m.get("value") or ""))).strip()[:60]
+
+
+def describe_size_guide(all_metafields: list[dict], settings: dict, field: dict | None = None) -> str:
+    """What the 'Size guide now' column shows.
+    Looks at the field the app saves to; if that's empty but another size field is filled,
+    says so, so you can spot when your store uses a different field."""
+    filled = [m for m in all_metafields
+              if _matches("size_guide", m.get("namespace", ""), m.get("key", ""), settings) and not _blank(m.get("value"))]
+    if field and field.get("key"):
+        here = [m for m in all_metafields if m.get("namespace") == field.get("namespace")
+                and m.get("key") == field.get("key") and not _blank(m.get("value"))]
+        if here:
+            return metafield_label(here[0])
+        if filled:
+            o = filled[0]
+            return f"None in {field['namespace']}.{field['key']}, but {o['namespace']}.{o['key']} has: {metafield_label(o)}"
+        return "No size guide"
+    return metafield_label(filled[0]) if filled else "No size guide"
+
+
 def size_guide_label(all_metafields: list[dict], settings: dict) -> str:
-    """Readable version of the product's current size guide: the page's title if the field
-    links to a page (or the entry's name for a metaobject), otherwise the start of the text."""
-    for m in all_metafields:
-        if _matches("size_guide", m.get("namespace", ""), m.get("key", ""), settings) and not _blank(m.get("value")):
-            ref = m.get("reference") or {}
-            refs = [r for r in ((m.get("references") or {}).get("nodes") or []) if r]
-            names = [r.get("title") or r.get("displayName") for r in ([ref] if ref else []) + refs]
-            names = [n for n in names if n]
-            if names:
-                return ", ".join(names)
-            return re.sub(r"<[^>]+>", " ", str(m["value"])).strip()[:60]
-    return ""
+    return describe_size_guide(all_metafields, settings)
 
 
 PAGE_FIELD_TYPES = ("page_reference", "list.page_reference")
@@ -459,6 +482,19 @@ def product_sku_number(product: dict, artist_code: str) -> int | None:
     return min(used) if used else None
 
 
+def sku_description(product: dict, rule: Rule | None, settings: dict, artist_name: str = "") -> str:
+    """The middle part of an auto SKU: item code + colour, e.g. 'TSGREY' (colour left off if it's a variant option)."""
+    return auto_base_sku(product, rule, "X", 0, settings, artist_name).split("-", 1)[1]
+
+
+def compose_base_sku(artist_code: str, number, description: str) -> str:
+    """('QUE', '7', 'TSGREY') -> 'QUE007-TSGREY'. Returns '' if anything is missing or the number isn't a number."""
+    num = str(number or "").strip()
+    if not artist_code or not description or not num.isdigit():
+        return ""
+    return f"{artist_code.upper()}{int(num):03d}-{description.strip().upper()}"
+
+
 def auto_base_sku(
     product: dict, rule: Rule | None, artist_code: str, number: int, settings: dict, artist_name: str = ""
 ) -> str:
@@ -552,21 +588,12 @@ def suggest_product_row(product: dict, rule: Rule | None, settings: dict, base_s
             return suggestion
         return ""
 
-    # Country of origin:
-    #  - already the same on every size -> shown as it is
-    #  - filled on some sizes but not others -> the same country is suggested for the missing sizes
-    #  - missing everywhere -> only pre-filled when this kind of product has ONE usual country
-    #    (posters/stickers -> UK, trinkets -> China). Clothing has several, so you pick it.
+    # Country of origin is NEVER pre-filled. The box shows the current country only when every size
+    # already has the same one; the usual countries are offered as suggestions in the dropdown.
     current_country = _same_for_all(variants, "country")
     country_missing = any(_blank(v.get("country")) for v in variants)
-    country = ""
-    if current_country:
-        country = country_label(current_country, settings)
-        if country_missing:
-            suggested.append("country")
-    elif country_missing and prefill_country and rule and len(rule.usual_countries) == 1:
-        country = country_label(rule.usual_countries[0], settings)
-        suggested.append("country")
+    country = country_label(current_country, settings) if current_country and not country_missing else ""
+    partial_country = country_label(current_country, settings) if current_country and country_missing else ""
 
     row = {
         "product_id": product["id"],
@@ -579,6 +606,8 @@ def suggest_product_row(product: dict, rule: Rule | None, settings: dict, base_s
         "size_guide": mf.get("size_guide") or "",
         "hs_code": pick(_same_for_all(variants, "hs_code"), rule.hs_code if rule else "", "hs_code"),
         "country": country,
+        "partial_country": partial_country,
+        "usual_codes": list(rule.usual_countries) if rule else [],
         "usual_country": " / ".join(settings.get("countries", {}).get(c, c) for c in (rule.usual_countries if rule else [])),
         "base_sku": base_sku,
     }

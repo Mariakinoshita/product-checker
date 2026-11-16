@@ -64,6 +64,8 @@ def reset_state():
     # also clears the tables' remembered edits, so they don't carry over to new products
     for k in STATE_KEYS + ["prod_df_final", "prod_editor", "var_editor"]:
         st.session_state.pop(k, None)
+    for k in [k for k in st.session_state if str(k).startswith("pc_")]:  # the product card boxes
+        st.session_state.pop(k, None)
 
 
 def read_credentials() -> tuple[str, str] | None:
@@ -179,34 +181,43 @@ def to_excel(sheets: dict[str, pd.DataFrame]) -> bytes:
 
 
 def build_tables(client, products: list[dict], sku_mode: str, artist_code: str, artist_name: str, overwrite: bool,
-                 prefill_country: bool = True):
-    """Makes the two editable tables, pre-filled with current values + suggestions."""
+                 start_number: str = "") -> pd.DataFrame:
+    """The starting values for each product card: what's in Shopify now, plus suggestions."""
     numbers_used: set[int] = set()
     if sku_mode == SKU_AUTO and artist_code:
         store_skus = client.skus_starting_with(artist_code)
         numbers_used = rules.sku_numbers_in_use(store_skus.values(), artist_code)
     next_number = max(numbers_used, default=0) + 1
+    if start_number.strip().isdigit():
+        next_number = int(start_number)
 
     prod_rows = []
     for p in products:
         rule = rule_for(p)
-        base = ""
+        number, desc = "", ""
         needs_sku = overwrite or any(not (v.get("sku") or "").strip() for v in p["variants"])
         if sku_mode == SKU_AUTO and artist_code and needs_sku:
-            number = rules.product_sku_number(p, artist_code)
-            if number is None:
-                number = next_number
+            existing = rules.product_sku_number(p, artist_code)
+            if existing is None:
+                existing = next_number
                 next_number += 1
-            base = rules.auto_base_sku(p, rule, artist_code, number, SETTINGS, artist_name)
-        row = rules.suggest_product_row(p, rule, SETTINGS, base, prefill_country)
-        row["blank"] = ""
-        row["include"] = True
+            number = f"{existing:03d}"
+            desc = rules.sku_description(p, rule, SETTINGS, artist_name)
+        row = rules.suggest_product_row(p, rule, SETTINGS, rules.compose_base_sku(artist_code, number, desc))
+        checks = rules.check_product(p, rule, SETTINGS)
+        row.update({
+            "include": True,
+            "blank": "",
+            "current_size_guide": p.get("size_guide_label") or "No size guide",
+            "needs_size_guide": bool(rule and rule.needs_size_guide),
+            "sku_number": number,
+            "sku_desc": desc,
+            "missing": ", ".join(rules.CHECK_LABELS[c] for c, v in checks.items() if v != "ok"),
+            "sizes": len(p["variants"]),
+        })
         row.pop("size_guide", None)
-        row["current_size_guide"] = p.get("size_guide_label", "")
         prod_rows.append(row)
-    cols = ["product_id", "include", "title", "kind", "product_type", "category", "tags", "blank", "current_size_guide",
-            "hs_code", "country", "usual_country", "base_sku", "suggested"]
-    return pd.DataFrame(prod_rows)[cols]
+    return pd.DataFrame(prod_rows)
 
 
 def build_variant_table(products: list[dict], prod_df: pd.DataFrame, overwrite: bool) -> pd.DataFrame:
@@ -233,6 +244,172 @@ def clean(value):
     return value
 
 
+PREORDER_TAG = SETTINGS.get("preorder_tag_to_add", "Preorder")
+NO_CHANGE = "— leave as it is —"
+
+
+def _label(text: str, field: str, suggested: str) -> str:
+    """Adds ✨ to a box's label when the app filled it in."""
+    return f"{text} ✨" if field in [s.strip() for s in suggested.split(",")] else text
+
+
+def render_product_card(row: dict, options: dict, sku_mode: str, artist_code: str, add_preorder: bool) -> dict:
+    """One bordered card per product, with proper boxes and dropdowns. Returns the row with your edits."""
+    pid = row["product_id"]
+    key = lambda name: f"pc_{name}_{pid}"
+    sug = row.get("suggested") or ""
+    out = dict(row)
+    with st.container(border=True):
+        head, toggle = st.columns([5, 1])
+        head.markdown(f"#### {row['title']}")
+        info = f"{row['kind']} · {row['sizes']} size{'s' if row['sizes'] != 1 else ''}"
+        head.caption(info + (f" · :red[Missing: {row['missing']}]" if row["missing"] else " · ✅ nothing missing"))
+        out["include"] = toggle.toggle("Save", value=bool(row.get("include", True)), key=key("include"),
+                                       help="Switch off to leave this product completely untouched")
+        if not out["include"]:
+            st.caption("This product won't be changed.")
+            return out
+
+        c1, c2, c3 = st.columns(3)
+        out["product_type"] = c1.text_input(_label("Type", "type", sug), value=row["product_type"], key=key("type"))
+        out["category"] = c2.text_input(
+            _label("Category", "category", sug), value=row["category"], key=key("category"),
+            help="A name like 'T-Shirts' is fine: the exact Shopify category is looked up when you review")
+        tags = c3.text_input("Tags", value=row["tags"], key=key("tags"), help="Separate tags with commas")
+        if add_preorder and not any(t.strip().lower() in [p.lower() for p in SETTINGS.get("preorder_tags", [])]
+                                    for t in tags.split(",")):
+            tags = ", ".join([t for t in [tags.strip(), PREORDER_TAG] if t])
+            c3.caption(f"+ {PREORDER_TAG} will be added")
+        out["tags"] = tags
+
+        c4, c5, c6 = st.columns(3)
+        out["hs_code"] = c4.text_input(_label("HS code", "hs_code", sug), value=row["hs_code"], key=key("hs_code"),
+                                       help="6–13 digits, no dots")
+
+        usual = [rules.country_label(c, SETTINGS) for c in row.get("usual_codes") or []]
+        others = [o for o in rules.country_options(SETTINGS, st.session_state.get("products")) if o not in usual]
+        choices = [""] + usual + others
+        if row["country"] and row["country"] not in choices:
+            choices.append(row["country"])
+        out["country"] = c5.selectbox(
+            "Country of origin", choices, index=choices.index(row["country"]) if row["country"] else 0,
+            key=key("country"),
+            format_func=lambda o: (("⭐ " if o in usual else "") + o) if o else
+            (NO_CHANGE if row["country"] else "— choose —"),
+            help="⭐ = usual for this kind of product. Applies to every size.")
+        if row.get("partial_country"):
+            c5.caption(f"Some sizes already have {row['partial_country']}")
+        elif not row["country"] and usual:
+            c5.caption("Usually: " + ", ".join(u.split(" (")[0] for u in usual))
+
+        if row.get("needs_size_guide"):
+            guide_labels = [""] + list(options.keys())
+            out["blank"] = c6.selectbox("Size guide", guide_labels, key=key("blank"),
+                                        format_func=lambda o: o or NO_CHANGE,
+                                        help="Pick the blank or size guide page to link to this product")
+            c6.caption(f"Now: {row['current_size_guide']}")
+        else:
+            out["blank"] = ""
+
+        if sku_mode == SKU_AUTO:
+            s1, s2, s3 = st.columns(3)
+            number = s1.text_input(_label("SKU number", "sku", "sku" if row.get("sku_number") else ""),
+                                   value=row.get("sku_number", ""), key=key("sku_number"),
+                                   help=f"The number after the artist code, e.g. 001 in {artist_code or 'QUE'}001")
+            desc = s2.text_input("SKU item + colour", value=row.get("sku_desc", ""), key=key("sku_desc"),
+                                 help="e.g. TSGREY. Sizes are added on the end automatically")
+            out["base_sku"] = rules.compose_base_sku(artist_code, number, desc)
+            if number and not number.strip().isdigit():
+                s3.error("SKU number must be digits only")
+            elif out["base_sku"]:
+                s3.caption("SKUs will look like")
+                s3.code(out["base_sku"] + ("-S" if row["sizes"] > 1 else ""), language=None)
+            elif not row.get("sku_number"):
+                s3.caption("Already has SKUs, so none are suggested")
+        elif sku_mode == SKU_BASE:
+            out["base_sku"] = st.text_input("Base SKU", value=row.get("base_sku", ""), key=key("base_sku"),
+                                            help="Sizes are added on the end: PF-PINKTS → PF-PINKTS-S, -M, -L")
+    return out
+
+
+PRETTY = {"product_type": "Type", "category": "Category", "tags": "Tags", "sku": "SKU", "barcode": "Barcode",
+          "price": "Price", "cost": "Cost per item", "weight_kg": "Weight (kg)", "hs_code": "HS code",
+          "country": "Country of origin", "size_guide": "Size guide"}
+
+
+def _show(value) -> str:
+    return "" if value in (None, "") else str(value)[:80]
+
+
+def _was(olds: list) -> str:
+    olds = {_show(o) for o in olds}
+    if olds == {""}:
+        return "was empty"
+    if len(olds) == 1:
+        return f"was {olds.pop()}"
+    return "had different values"
+
+
+def changes_table(changes) -> pd.DataFrame:
+    """Every change as one flat list (for the Excel download and the 'one list' view)."""
+    return pd.DataFrame([
+        {"Product": c.product_title, "Size": c.label if c.level == "variant" else "",
+         "Field": PRETTY.get(c.field, c.field), "Now": _show(c.old),
+         "Will become": _show(c.new) + (f"  {c.label}" if c.field == "category" else "")}
+        for c in changes])
+
+
+def render_review(changes) -> None:
+    """The review, grouped by product. Changes that are the same on every size are shown once."""
+    by_product: dict[str, list] = {}
+    for c in changes:
+        by_product.setdefault(c.product_id, []).append(c)
+    st.markdown(f"**{len(by_product)} product{'s' if len(by_product) != 1 else ''} · {len(changes)} changes**")
+    guide_names = {v: k for k, v in guide_options_cache().items() if isinstance(v, str)}
+
+    for items in by_product.values():
+        title = items[0].product_title
+        with st.container(border=True):
+            st.markdown(f"#### {title}")
+            lines = []
+            for c in items:
+                if c.level == "variant":
+                    continue
+                new = _show(c.new)
+                if c.field == "category":
+                    new = c.label.replace("→ ", "") or new
+                if c.field == "size_guide":
+                    new = guide_names.get(c.new) or ("new size guide table" if str(c.new).lstrip()[:1] in "<{[" else new)
+                old = _show(c.old) or "empty"
+                lines.append(f"- **{PRETTY.get(c.field, c.field)}:** {new}  \n  :gray[was {old}]")
+
+            per_size: dict[str, dict] = {}
+            by_field: dict[str, list] = {}
+            for c in items:
+                if c.level == "variant":
+                    by_field.setdefault(c.field, []).append(c)
+            for field_name, fcs in by_field.items():
+                if len({_show(c.new) for c in fcs}) == 1:  # same new value on every size -> one line
+                    n = len(fcs)
+                    lines.append(f"- **{PRETTY.get(field_name, field_name)}:** {_show(fcs[0].new)}"
+                                 f" on {n} size{'s' if n != 1 else ''}  \n  :gray[{_was([c.old for c in fcs])}]")
+                else:
+                    for c in fcs:
+                        cell = _show(c.new) if _show(c.old) == "" else f"{_show(c.new)} (was {_show(c.old)})"
+                        per_size.setdefault(c.label or "—", {})[PRETTY.get(field_name, field_name)] = cell
+            if lines:
+                st.markdown("\n".join(lines))
+            if per_size:
+                table = pd.DataFrame.from_dict(per_size, orient="index").fillna("")
+                table.index.name = "Size"
+                st.dataframe(table.reset_index(), hide_index=True, width="stretch")
+
+
+def guide_options_cache() -> dict:
+    """The size guide choices last shown on the cards (to show names instead of page codes)."""
+    return st.session_state.get("guide_options_shown", {})
+
+
 # ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
@@ -248,7 +425,19 @@ not_connected = [s for s in real_stores if status.get(s["shop_domain"]) != "ok"]
 choices = connected + demo_stores
 store_name = st.sidebar.selectbox("Store", [s["store_name"] for s in choices], on_change=reset_state,
                                   help="Only stores the product-checker app is installed on are listed")
-store = next(s for s in choices if s["store_name"] == store_name)
+store = next((s for s in choices if s["store_name"] == store_name), None)
+if store is None:
+    st.title("✅ Product Checker")
+    if not creds:
+        st.error("No stores available: the app can't find SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET. "
+                 "Online: Manage app → ⋮ → Settings → Secrets. On your laptop: .streamlit/secrets.toml.")
+    elif not real_stores:
+        st.error("No stores listed in config/stores.csv yet. Add a line per store, e.g. "
+                 "`Queen UK,queen-uk.myshopify.com,QUE,Queen`.")
+    else:
+        st.error("None of the stores in config/stores.csv would log in. Open 'store(s) not available' in the "
+                 "sidebar to see why, install product-checker on the store, then click Refresh store list.")
+    st.stop()
 st.sidebar.caption(f"{len(connected)} store(s) connected")
 if not_connected:
     with st.sidebar.expander(f"{len(not_connected)} store(s) not available"):
@@ -266,11 +455,12 @@ artist_code = st.sidebar.text_input("Artist code", value=store.get("artist_code"
                                     help="Start of every SKU for this store, e.g. PF for Pink Floyd").strip().upper()
 artist_name = st.sidebar.text_input("Artist name", value=store.get("artist_name", ""),
                                     help="So words in the artist's name (e.g. 'Pink' in Pink Floyd) aren't read as colours")
-st.sidebar.subheader("Country of origin")
-prefill_country = st.sidebar.checkbox(
-    "Pre-fill the usual country when there's only one", value=True,
-    help="Posters & stickers → United Kingdom, gadgets & trinkets → China. Clothing is never pre-filled: "
-         "pick it from the dropdown (usually Honduras, Bangladesh, India, China or Pakistan).")
+start_number = ""
+if sku_mode == SKU_AUTO:
+    start_number = st.sidebar.text_input(
+        "Start SKU numbers at (optional)", placeholder="automatic",
+        help="Leave empty to carry on after the highest number already used in the store, e.g. type 20 to "
+             "start at QUE020. You can also change each product's number on its card.").strip()
 overwrite_skus = st.sidebar.checkbox("Replace SKUs that already exist", value=False,
                                      help="Off = only fill in blank SKUs")
 if store["shop_domain"] == "demo":
@@ -307,9 +497,9 @@ with tab_check:
                 st.session_state["products"] = products
                 st.session_state["not_found"] = not_found
                 st.session_state["close"] = close
-                st.session_state["prod_df"] = build_tables(client, products, sku_mode, artist_code, artist_name, overwrite_skus,
-                                                           prefill_country)
-                st.session_state["sku_mode_used"] = (sku_mode, artist_code, overwrite_skus, prefill_country)
+                st.session_state["prod_df"] = build_tables(client, products, sku_mode, artist_code, artist_name,
+                                                           overwrite_skus, start_number)
+                st.session_state["sku_mode_used"] = (sku_mode, artist_code, overwrite_skus, start_number)
         except ShopifyError as e:
             st.error(str(e))
 
@@ -320,7 +510,7 @@ with tab_check:
     if products == []:
         st.info("No products found.")
     if products:
-        if st.session_state.get("sku_mode_used") != (sku_mode, artist_code, overwrite_skus, prefill_country):
+        if st.session_state.get("sku_mode_used") != (sku_mode, artist_code, overwrite_skus, start_number):
             st.warning("You changed the sidebar settings — click **Load products** again to use them.")
 
         # ---------------- audit ----------------
@@ -337,50 +527,28 @@ with tab_check:
 
         # ---------------- product-level fixes ----------------
         st.header("3. Fix product details")
-        st.caption(
-            "Pre-filled with what's in Shopify now; blanks the app could guess are filled in and listed under "
-            "**suggested** — these WILL be saved unless you clear them. Untick **Save?** to leave a product "
-            "completely alone. Empty cells are never written, so nothing gets wiped.")
+        st.caption("Each card starts with what's in Shopify now. ✨ marks a box the app filled in for you: it **will** "
+                   "be saved unless you change or clear it. Empty boxes are never saved, so nothing gets wiped.")
         try:
             guide_field = get_size_guide_field(client)
         except ShopifyError as e:
             st.error(str(e))
             guide_field = None
         options = guide_options(client, guide_field)
+        st.session_state["guide_options_shown"] = {k: v for k, v in options.items() if isinstance(v, str)}
         if guide_field:
             st.caption(f"Size guides are saved to **{guide_field['namespace']}.{guide_field['key']}**"
                        + (" (links to a page)" if is_page_field(guide_field) else ""))
-        prod_df = st.data_editor(
-            st.session_state["prod_df"],
-            key="prod_editor",
-            hide_index=True,
-            width="stretch",
-            disabled=["title", "kind", "current_size_guide", "usual_country", "suggested"],
-            column_order=["include", "title", "kind", "product_type", "category", "tags", "blank", "current_size_guide",
-                          "hs_code", "country", "usual_country", "base_sku", "suggested"],
-            column_config={
-                "include": st.column_config.CheckboxColumn(
-                    "Save?", help="Untick to leave this product completely untouched"),
-                "title": st.column_config.TextColumn("Product", width="medium"),
-                "product_type": st.column_config.TextColumn("Type"),
-                "category": st.column_config.TextColumn(
-                    "Category", help="A category name like 'T-Shirts' is fine — the exact Shopify category is "
-                                     "looked up when you review."),
-                "tags": st.column_config.TextColumn("Tags", help="Comma separated"),
-                "blank": st.column_config.SelectboxColumn(
-                    "Blank / size guide", options=[""] + list(options.keys()),
-                    help="Pick the blank to add its size guide (and its weight, if it has one)"),
-                "current_size_guide": st.column_config.TextColumn("Size guide now"),
-                "hs_code": st.column_config.TextColumn("HS code", help="6–13 digits, no dots"),
-                "country": st.column_config.SelectboxColumn(
-                    "Country of origin", options=[""] + rules.country_options(SETTINGS, products),
-                    help="Pick from the list. Applies to every size of the product."),
-                "usual_country": st.column_config.TextColumn("Usually", help="The usual countries for this kind of product"),
-                "base_sku": st.column_config.TextColumn(
-                    "Base SKU", help="Sizes are added on the end for each variant: PF-PINKTS → PF-PINKTS-S, -M, -L"),
-                "suggested": st.column_config.TextColumn("suggested", width="small"),
-            },
-        )
+
+        add_preorder = st.checkbox(
+            f"Add the **{PREORDER_TAG}** tag to all products below",
+            key="pc_all_preorder",
+            help="Adds the tag to every ticked product that doesn't already have a preorder tag. "
+                 "Existing tags are kept.")
+
+        card_rows = [render_product_card(row, options, sku_mode, artist_code, add_preorder)
+                     for row in st.session_state["prod_df"].to_dict("records")]
+        prod_df = pd.DataFrame(card_rows)
 
         by_id = {p["id"]: p for p in products}
 
@@ -471,18 +639,10 @@ with tab_check:
             if not changes:
                 st.success("Nothing to change.")
             else:
-                pretty = {"product_type": "Type", "category": "Category", "tags": "Tags", "sku": "SKU",
-                          "barcode": "Barcode", "price": "Price", "cost": "Cost", "weight_kg": "Weight (kg)",
-                          "hs_code": "HS code", "country": "Country of origin", "size_guide": "Size guide"}
-                diff = pd.DataFrame([
-                    {"Product": c.product_title,
-                     "Variant": c.label if c.level == "variant" else "",
-                     "Field": pretty.get(c.field, c.field),
-                     "Now": "" if c.old in (None, "") else str(c.old)[:80],
-                     "Will become": str(c.new)[:80] + (f"  {c.label}" if c.field == "category" else "")}
-                    for c in changes
-                ])
-                st.dataframe(diff, hide_index=True, width="stretch")
+                diff = changes_table(changes)
+                render_review(changes)
+                with st.expander("Show every change as one list"):
+                    st.dataframe(diff, hide_index=True, width="stretch")
                 st.download_button("Download these changes as Excel", to_excel({"Changes": diff}),
                                    file_name=f"product_changes_{store['shop_domain']}.xlsx")
                 confirm = st.checkbox(f"I've checked these {len(changes)} changes and want to save them to "

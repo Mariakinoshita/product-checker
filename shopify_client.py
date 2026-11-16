@@ -29,6 +29,11 @@ class ShopifyError(Exception):
     pass
 
 
+def _uncategorised(node: dict) -> bool:
+    cat = node.get("category") or {}
+    return (not cat) or cat.get("id", "").endswith("/na") or (cat.get("fullName") or "").strip().lower() == "uncategorized"
+
+
 def normalise_shop_domain(text: str) -> str:
     """Accepts any way of writing the store and returns 'xxx.myshopify.com':
     'queen-uk', 'queen-uk.myshopify.com', 'https://queen-uk.myshopify.com/admin',
@@ -143,10 +148,7 @@ class ShopifyClient:
           id title handle productType tags status descriptionHtml
           category { id fullName }
           featuredMedia { id }
-          metafields(first: 25) { nodes {
-            namespace key type value
-            reference { __typename ... on Page { title } ... on Metaobject { displayName } }
-          } }
+          metafields(first: 50) { nodes { namespace key type value } }
           variants(first: 60) { nodes {
             id title sku barcode price
             selectedOptions { name value }
@@ -190,8 +192,10 @@ class ShopifyClient:
             "title": node.get("title", ""),
             "handle": node.get("handle", ""),
             "product_type": node.get("productType") or "",
-            "category_id": (node.get("category") or {}).get("id", ""),
-            "category_name": (node.get("category") or {}).get("fullName", ""),
+            # Shopify's "Uncategorized" counts as no category
+            "category_id": "" if _uncategorised(node) else (node.get("category") or {}).get("id", ""),
+            "category_name": "" if _uncategorised(node) else (node.get("category") or {}).get("fullName", ""),
+            "raw_metafields": (node.get("metafields") or {}).get("nodes", []),
             "tags": node.get("tags", []),
             "has_image": bool(node.get("featuredMedia")),
             "description": node.get("descriptionHtml") or "",
@@ -212,11 +216,39 @@ class ShopifyClient:
         out, after = [], None
         while len(out) < limit:
             data = self.graphql(q, {"q": query, "after": after})["products"]
-            out += [self.normalise_product(n, settings) for n in data["nodes"]]
+            batch = [self.normalise_product(n, settings) for n in data["nodes"]]
+            self._add_linked_names(batch, settings)
+            out += batch
             if not data["pageInfo"]["hasNextPage"]:
                 break
             after = data["pageInfo"]["endCursor"]
         return out[:limit]
+
+    def _add_linked_names(self, products: list[dict], settings: dict) -> None:
+        """Size guide fields often hold links (gid://shopify/Page/123). Looks up the page / entry names
+        in one request so 'Size guide now' can show 'EP01 Size Guide' instead of a code."""
+        wanted = {}
+        for p in products:
+            for m in p.get("raw_metafields", []):
+                if rules._matches("size_guide", m.get("namespace", ""), m.get("key", ""), settings):
+                    for gid in re.findall(r"gid://shopify/[A-Za-z]+/\d+", str(m.get("value") or "")):
+                        wanted[gid] = None
+        if not wanted:
+            return
+        q = """query($ids: [ID!]!) { nodes(ids: $ids) {
+                 id ... on Page { title } ... on Metaobject { displayName } } }"""
+        ids = list(wanted)
+        for i in range(0, len(ids), 100):
+            for n in self.graphql(q, {"ids": ids[i:i + 100]})["nodes"]:
+                if n:
+                    wanted[n["id"]] = n.get("title") or n.get("displayName")
+        for p in products:
+            for m in p.get("raw_metafields", []):
+                gids = re.findall(r"gid://shopify/[A-Za-z]+/\d+", str(m.get("value") or ""))
+                names = [{"title": wanted[g]} for g in gids if wanted.get(g)]
+                if names:
+                    m["references"] = {"nodes": names}
+            p["size_guide_label"] = rules.describe_size_guide(p["raw_metafields"], settings)
 
     def find_by_titles(self, titles: list[str], settings: dict) -> tuple[list[dict], list[str], dict]:
         """Returns (found products, titles not found, {title: close matches})."""

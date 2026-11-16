@@ -31,16 +31,17 @@ Release date and tracklist are found by the app itself:
     5026 → Size Guide 5026"). The app only links the product to the page. It never
     edits or creates pages.
   - If it's a **text** field, the blank's table from `size_guides.csv` is saved in it.
-- **Country of origin**: pick it from a dropdown. The **Usually** column shows the usual
-  countries for that kind of product (set in the `usual_countries` column of `product_rules.csv`):
-  - Clothing: Honduras / Bangladesh / India / China / Pakistan. **Never pre-filled**, you pick.
-  - Posters and stickers: United Kingdom. Gadgets and trinkets (mugs, pins, keyrings, magnets…): China.
-    These are pre-filled because there's only one usual answer. Turn this off in the sidebar.
-  - If some sizes have a country and others don't, the same country is suggested for the missing sizes.
+- **Country of origin**: never filled in for you. Each product's dropdown lists its usual countries
+  first, marked ⭐ (set in the `usual_countries` column of `product_rules.csv`):
+  - Clothing: Honduras, Bangladesh, India, China, Pakistan
+  - Posters and stickers: United Kingdom
+  - Gadgets and trinkets (mugs, pins, keyrings, magnets…): China
+- **Preorder tag**: tick "Add the Preorder tag to all products" to add it to every product (existing tags are kept).
 - **SKUs**, two ways (choose in the sidebar):
   - *Base SKU + sizes*: type `PF-PINKTS` and you get `PF-PINKTS-S`, `PF-PINKTS-M`…
   - *Auto*: `PF001-TSGREY-S`. The app carries on from the highest PF number
-    already in the store.
+    already in the store. You can change each product's number (the 001) on its card,
+    or set "Start SKU numbers at" in the sidebar.
 - **Safety**:
   - It never overwrites anything already filled in unless you change it yourself.
     The one exception is the "Replace SKUs that already exist" box.
@@ -140,3 +141,23 @@ and you can also type it in the sidebar.
 - `rules.py`: the checks and suggestions
 - `shopify_client.py`: reading from and saving to Shopify
 - `tests/`: run `python -m pytest tests` to check nothing broke after changes
+
+## Adding standard weights and HS codes
+
+They live in `config/product_rules.csv` (opens in Excel). One row per kind of product:
+
+| Column | What it is |
+|---|---|
+| `keywords` | Words in the title that mean this kind of product, separated by `\|` |
+| `product_type` | The Shopify type to suggest |
+| `category` | A Shopify category name |
+| `hs_code` | HS code, digits only |
+| `weight_kg` | Standard weight in kg |
+| `group` | music / digital / clothing / bundle / other |
+| `sku_code` | The item part of auto SKUs (TS, HD, LP…) |
+| `needs_size_guide` | yes / no |
+| `usual_countries` | 2-letter codes separated by `\|`, shown first in the country dropdown |
+
+Rows are checked top to bottom and the first match wins. On the online app, edit the file on
+GitHub (open it and click the pencil icon). Changes go live within a minute. Or send the list
+to Claude in any format and it'll update the file.
