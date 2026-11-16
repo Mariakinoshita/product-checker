@@ -1,0 +1,29 @@
+keywords,product_type,category,hs_code,weight_kg,group,sku_code,needs_size_guide,usual_countries
+bundle,Bundle,,,,bundle,BNDL,no,
+digital download|deluxe digital|digital album|digital single|download,Digital Download,Digital Music,,0,digital,DIG,no,
+box set|boxset,Box Set,,,,music,BOX,no,
+vinyl|lp|2lp|3lp|4lp|12 inch|7 inch|picture disc,Vinyl,Vinyl,85234909,0.5,music,LP,no,
+cd|2cd|3cd|compact disc,CD,Music CDs,85234900,0.1,music,CD,no,
+cassette|tape,Cassette,Music Cassette Tapes,,0.1,music,CS,no,
+hoodie|hoody|hooded|zip hood|zip up|zip-up|zipup,Hoodie,Hoodies,61102000,0.5,clothing,HD,yes,HN|BD|IN|CN|PK
+sweatshirt|crewneck|crew neck|sweater|jumper,Sweatshirt,Sweatshirts,61102000,0.5,clothing,SW,yes,HN|BD|IN|CN|PK
+tank|tank top|vest,Tank Top,Tank Tops,61091000,0.19,clothing,TANK,yes,HN|BD|IN|CN|PK
+longsleeve|long sleeve|ls tee,Long Sleeve T-Shirt,T-Shirts,61091000,,clothing,LS,yes,HN|BD|IN|CN|PK
+t-shirt|tshirt|tee|t shirt,T-Shirt,T-Shirts,61091000,0.19,clothing,TS,yes,HN|BD|IN|CN|PK
+beanie,Beanie,Beanies,65050000,0.19,clothing,BEAN,no,HN|BD|IN|CN|PK
+cap|baseball cap|snapback|dad hat|bucket hat|hat,Cap,Baseball Caps,65050000,0.19,clothing,CAP,no,HN|BD|IN|CN|PK
+tote|tote bag,Tote Bag,Tote Bags,42029200,,other,TOTE,no,
+poster|print|lithograph|litho,Poster,Posters,49111000,0.51,other,PST,no,GB
+mug,Mug,Mugs,,,other,MUG,no,CN
+pin|pin badge|enamel pin|badge,Pin Badge,Brooches & Lapel Pins,,,other,PIN,no,CN
+sticker|stickers,Sticker,Stickers,,,other,STK,no,GB
+keyring|keychain|key ring,Keyring,Keychains,,,other,KEY,no,CN
+magnet|fridge magnet,Magnet,Refrigerator Magnets,,,other,MAG,no,CN
+lanyard,Lanyard,Lanyards,,,other,LAN,no,CN
+lighter,Lighter,Lighters,,,other,LGT,no,CN
+phone case|phonecase,Phone Case,Mobile Phone Cases,,,other,PHC,no,CN
+coaster|coasters,Coaster,Coasters,,,other,CST,no,CN
+bottle opener,Bottle Opener,Bottle Openers,,,other,OPN,no,CN
+water bottle|bottle,Bottle,Water Bottles,,,other,BTL,no,CN
+slipmat,Slipmat,,,,other,SLP,no,CN
+book|zine|photobook,Book,Books,,,other,BOOK,no,

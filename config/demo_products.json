@@ -1,0 +1,422 @@
+[
+ {
+  "id": "gid://shopify/Product/101",
+  "title": "Pink Floyd Grey Tee",
+  "handle": "pink-floyd-grey-tee",
+  "product_type": "",
+  "category_id": "",
+  "category_name": "",
+  "tags": [],
+  "has_image": true,
+  "description": "",
+  "status": "ACTIVE",
+  "metafields": {},
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10100",
+    "inventory_item_id": "gid://shopify/InventoryItem/10100",
+    "title": "Small",
+    "options": {
+     "Size": "Small"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10101",
+    "inventory_item_id": "gid://shopify/InventoryItem/10101",
+    "title": "Medium",
+    "options": {
+     "Size": "Medium"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10102",
+    "inventory_item_id": "gid://shopify/InventoryItem/10102",
+    "title": "Large",
+    "options": {
+     "Size": "Large"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10103",
+    "inventory_item_id": "gid://shopify/InventoryItem/10103",
+    "title": "X-Large",
+    "options": {
+     "Size": "X-Large"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   }
+  ]
+ },
+ {
+  "id": "gid://shopify/Product/102",
+  "title": "Animals 50 | Blue Vinyl",
+  "handle": "animals-50-|-blue-vinyl",
+  "product_type": "Vinyl",
+  "category_id": "gid://shopify/TaxonomyCategory/me-3-x",
+  "category_name": "Media > Music & Sound Recordings > Vinyl",
+  "tags": [
+   "Music",
+   "Animals 50"
+  ],
+  "has_image": true,
+  "description": "",
+  "status": "ACTIVE",
+  "metafields": {},
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10200",
+    "inventory_item_id": "gid://shopify/InventoryItem/10200",
+    "title": "Default Title",
+    "options": {
+     "Title": "Default Title"
+    },
+    "sku": "PF014-LPBLUE",
+    "barcode": "",
+    "price": "34.99",
+    "cost": "12.10",
+    "weight_kg": 0.5,
+    "country": "DE",
+    "hs_code": "852380"
+   }
+  ]
+ },
+ {
+  "id": "gid://shopify/Product/103",
+  "title": "Animals 50 | CD",
+  "handle": "animals-50-|-cd",
+  "product_type": "",
+  "category_id": "",
+  "category_name": "",
+  "tags": [
+   "Music"
+  ],
+  "has_image": true,
+  "description": "<p>Tracklist:</p><ol><li>Pigs on the Wing 1</li></ol>",
+  "status": "ACTIVE",
+  "metafields": {
+   "release_date": "2027-01-23"
+  },
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10300",
+    "inventory_item_id": "gid://shopify/InventoryItem/10300",
+    "title": "Default Title",
+    "options": {
+     "Title": "Default Title"
+    },
+    "sku": "",
+    "barcode": "0123456789012",
+    "price": "12.99",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   }
+  ]
+ },
+ {
+  "id": "gid://shopify/Product/104",
+  "title": "Pig Hoodie",
+  "handle": "pig-hoodie",
+  "product_type": "",
+  "category_id": "",
+  "category_name": "",
+  "tags": [
+   "Preorder"
+  ],
+  "has_image": false,
+  "description": "",
+  "status": "ACTIVE",
+  "metafields": {},
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10400",
+    "inventory_item_id": "gid://shopify/InventoryItem/10400",
+    "title": "Small",
+    "options": {
+     "Size": "Small"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": "14.00",
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10401",
+    "inventory_item_id": "gid://shopify/InventoryItem/10401",
+    "title": "Medium",
+    "options": {
+     "Size": "Medium"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": "14.00",
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10402",
+    "inventory_item_id": "gid://shopify/InventoryItem/10402",
+    "title": "Large",
+    "options": {
+     "Size": "Large"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": "14.00",
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10403",
+    "inventory_item_id": "gid://shopify/InventoryItem/10403",
+    "title": "X-Large",
+    "options": {
+     "Size": "X-Large"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": "14.00",
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   }
+  ]
+ },
+ {
+  "id": "gid://shopify/Product/105",
+  "title": "Prism Tee",
+  "handle": "prism-tee",
+  "product_type": "",
+  "category_id": "",
+  "category_name": "",
+  "tags": [],
+  "has_image": true,
+  "description": "",
+  "status": "ACTIVE",
+  "metafields": {},
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10500",
+    "inventory_item_id": "gid://shopify/InventoryItem/10500",
+    "title": "Black / S",
+    "options": {
+     "Colour": "Black",
+     "Size": "S"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10501",
+    "inventory_item_id": "gid://shopify/InventoryItem/10501",
+    "title": "Black / M",
+    "options": {
+     "Colour": "Black",
+     "Size": "M"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10502",
+    "inventory_item_id": "gid://shopify/InventoryItem/10502",
+    "title": "Black / L",
+    "options": {
+     "Colour": "Black",
+     "Size": "L"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10510",
+    "inventory_item_id": "gid://shopify/InventoryItem/10510",
+    "title": "White / S",
+    "options": {
+     "Colour": "White",
+     "Size": "S"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10511",
+    "inventory_item_id": "gid://shopify/InventoryItem/10511",
+    "title": "White / M",
+    "options": {
+     "Colour": "White",
+     "Size": "M"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   },
+   {
+    "id": "gid://shopify/ProductVariant/10512",
+    "inventory_item_id": "gid://shopify/InventoryItem/10512",
+    "title": "White / L",
+    "options": {
+     "Colour": "White",
+     "Size": "L"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "30.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   }
+  ]
+ },
+ {
+  "id": "gid://shopify/Product/106",
+  "title": "Animals 50 | Deluxe Digital Download",
+  "handle": "animals-50-|-deluxe-digital-download",
+  "product_type": "",
+  "category_id": "",
+  "category_name": "",
+  "tags": [],
+  "has_image": true,
+  "description": "",
+  "status": "ACTIVE",
+  "metafields": {},
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10600",
+    "inventory_item_id": "gid://shopify/InventoryItem/10600",
+    "title": "Default Title",
+    "options": {
+     "Title": "Default Title"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "9.99",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   }
+  ]
+ },
+ {
+  "id": "gid://shopify/Product/107",
+  "title": "Animals 50 | CD + Vinyl Bundle",
+  "handle": "animals-50-|-cd-+-vinyl-bundle",
+  "product_type": "",
+  "category_id": "",
+  "category_name": "",
+  "tags": [],
+  "has_image": true,
+  "description": "",
+  "status": "ACTIVE",
+  "metafields": {},
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10700",
+    "inventory_item_id": "gid://shopify/InventoryItem/10700",
+    "title": "Default Title",
+    "options": {
+     "Title": "Default Title"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "44.99",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   }
+  ]
+ },
+ {
+  "id": "gid://shopify/Product/108",
+  "title": "Battersea Poster",
+  "handle": "battersea-poster",
+  "product_type": "",
+  "category_id": "",
+  "category_name": "",
+  "tags": [],
+  "has_image": true,
+  "description": "",
+  "status": "ACTIVE",
+  "metafields": {},
+  "variants": [
+   {
+    "id": "gid://shopify/ProductVariant/10800",
+    "inventory_item_id": "gid://shopify/InventoryItem/10800",
+    "title": "Default Title",
+    "options": {
+     "Title": "Default Title"
+    },
+    "sku": "",
+    "barcode": "",
+    "price": "15.00",
+    "cost": null,
+    "weight_kg": null,
+    "country": "",
+    "hs_code": ""
+   }
+  ]
+ }
+]
